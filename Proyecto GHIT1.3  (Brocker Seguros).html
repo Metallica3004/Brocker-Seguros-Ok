@@ -1,0 +1,2114 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark light" />
+  <title>Control de Asegurados — Bróker</title>
+
+  <!-- SheetJS (Excel import/export) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root{
+      --bg0:#070A12;
+      --bg1:#0b1220;
+
+      --text:#eef3ff;
+      --muted:#a8b6d6;
+
+      /* Tema (se reemplaza al seleccionar paleta) */
+      --brand:#2563eb;
+      --brand-2:#1e40af;
+      --brand-soft:#dbeafe;
+
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --mid:#fb923c;
+      --bad:#ef4444;
+
+      --stroke: rgba(255,255,255,.12);
+      --stroke2: rgba(255,255,255,.08);
+
+      --shadow: 0 14px 40px rgba(0,0,0,.45);
+      --shadow2: 0 10px 25px rgba(0,0,0,.28);
+
+      --r16: 16px;
+      --r14: 14px;
+      --r12: 12px;
+
+      /* Watermark (logo diluido) */
+      --wm-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800' viewBox='0 0 1200 800'%3E%3Cdefs%3E%3CradialGradient id='g' cx='50%25' cy='40%25' r='60%25'%3E%3Cstop offset='0%25' stop-color='%232563eb' stop-opacity='0.35'/%3E%3Cstop offset='55%25' stop-color='%2322c55e' stop-opacity='0.16'/%3E%3Cstop offset='100%25' stop-color='%23ffffff' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='1200' height='800' fill='url(%23g)'/%3E%3Cg transform='translate(600 360)'%3E%3Cpath d='M0-240 C130-220 240-145 240-5 C240 165 85 260 0 295 C-85 260 -240 165 -240-5 C-240-145 -130-220 0-240Z' fill='%23ffffff' fill-opacity='0.16'/%3E%3C/g%3E%3Ctext x='600' y='640' text-anchor='middle' font-family='Segoe UI,Arial' font-size='64' font-weight='800' fill='%23ffffff' fill-opacity='0.18'%3ELOGO%20FICTICIO%3C/text%3E%3C/svg%3E");
+      --wm-opacity: .14;
+      --wm-size: min(980px, 95vw);
+      --wm-blur: .4px;
+    }
+
+    *{ box-sizing:border-box; }
+
+    body{
+      margin:0;
+      font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      background:
+        radial-gradient(900px 520px at 12% -10%, color-mix(in oklab, var(--brand) 36%, transparent), transparent 60%),
+        radial-gradient(860px 520px at 110% 10%, rgba(37,214,162,.20), transparent 55%),
+        radial-gradient(640px 420px at 50% 110%, rgba(79,140,255,.18), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+    }
+
+    /* ruido sutil */
+    body::after{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      opacity:.06;
+      mix-blend-mode: overlay;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+    }
+
+    /* watermark (logo diluido) */
+    body::before{
+      content:"";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: var(--wm-opacity);
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: var(--wm-size);
+      filter: blur(var(--wm-blur));
+      background-image: var(--wm-image);
+    }
+
+    .container{
+      max-width: 1320px;
+      margin: 26px auto;
+      padding: 0 16px 60px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .shell{
+      border-radius: var(--r16);
+      border: 1px solid var(--stroke2);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding: 18px 16px 16px;
+      background: linear-gradient(90deg,
+        color-mix(in oklab, var(--brand) 25%, transparent),
+        rgba(37,214,162,.08)
+      );
+      border-bottom: 1px solid var(--stroke2);
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width: 280px;
+    }
+
+    /* Logo más grande */
+    .logo-box{
+      width: 62px;
+      height: 62px;
+      border-radius: 16px;
+      box-shadow: var(--shadow2);
+      display:grid;
+      place-items:center;
+      border: 1px solid rgba(255,255,255,.20);
+      overflow:hidden;
+      background:
+        radial-gradient(60% 60% at 30% 20%, rgba(255,255,255,.35), transparent 55%),
+        linear-gradient(135deg,
+          color-mix(in oklab, var(--brand) 70%, #ffffff 0%),
+          rgba(37,214,162,.80)
+        );
+    }
+    .logo-box img{
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display:none;
+      background: rgba(0,0,0,.10);
+    }
+    .logo-box svg{
+      width: 34px;
+      height: 34px;
+      opacity: .95;
+    }
+
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .title h1{
+      margin:0;
+      font-size: 17px;
+      letter-spacing: .2px;
+      line-height: 1.2;
+    }
+    .title h1 strong{
+      font-weight: 950;
+      color: #fff;
+    }
+    .title p{
+      margin:0;
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .btn{
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      transition: transform .06s ease, background .15s ease, border-color .15s ease;
+      font-weight: 800;
+      font-size: 13px;
+      user-select:none;
+    }
+    .btn:hover{
+      background: rgba(255,255,255,.09);
+      border-color: rgba(255,255,255,.18);
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(135deg,
+        color-mix(in oklab, var(--brand) 38%, transparent),
+        rgba(37,214,162,.14)
+      );
+      border-color: color-mix(in oklab, var(--brand) 45%, rgba(255,255,255,.12));
+    }
+    .btn.danger{
+      background: rgba(239,68,68,.16);
+      border-color: rgba(239,68,68,.35);
+    }
+    .btn.ghost{ background: transparent; }
+
+    /* foco visible */
+    .btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{
+      outline: 3px solid color-mix(in oklab, var(--brand) 90%, white 0%);
+      outline-offset: 2px;
+    }
+
+    .toolbar{
+      padding: 14px 16px;
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom: 1px solid var(--stroke2);
+      background: rgba(255,255,255,.02);
+    }
+
+    .search{
+      flex: 1 1 360px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      min-width: 240px;
+    }
+
+    .field, .select{
+      width: 100%;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--stroke2);
+      color: var(--text);
+      padding: 11px 12px;
+      border-radius: 14px;
+      font-size: 14px;
+    }
+    .field::placeholder{ color: rgba(238,243,255,.55); }
+    .select{ width:auto; }
+
+    .hint{
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .filters{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+    }
+
+    /* ================================
+       MENÚS DESPLEGABLES – MEJORA UX
+       ================================ */
+    select{
+      background-color:#fff !important;
+      color:#000 !important;
+      font-weight: 700;
+      cursor:pointer;
+    }
+    select option{
+      background:#fff;
+      color:#000;
+      font-weight: 600;
+    }
+    select option:hover,
+    select option:focus,
+    select option:checked{
+      background:#000 !important;
+      color:#fff !important;
+    }
+    select:focus{
+      border-color:#000;
+      box-shadow:0 0 0 2px rgba(0,0,0,.25);
+    }
+
+    .stats{
+      padding: 14px 16px;
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      border-bottom: 1px solid var(--stroke2);
+      background: rgba(255,255,255,.015);
+    }
+
+    .card{
+      border-radius: var(--r16);
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,.04);
+      padding: 12px;
+      box-shadow: 0 10px 22px rgba(0,0,0,.18);
+      position: relative;
+      overflow:hidden;
+    }
+    .card::before{
+      content:"";
+      position:absolute;
+      inset:-40px;
+      background:
+        radial-gradient(380px 220px at 20% 0%, color-mix(in oklab, var(--brand) 22%, transparent), transparent 60%),
+        radial-gradient(340px 220px at 90% 10%, rgba(37,214,162,.16), transparent 60%);
+      opacity:.9;
+      pointer-events:none;
+    }
+    .card > *{ position: relative; z-index: 1; }
+
+    .k{ font-size: 12px; color: var(--muted); font-weight: 850; text-transform: uppercase; letter-spacing:.3px;}
+    .v{ font-size: 22px; font-weight: 950; margin-top: 4px; }
+    .small{ font-size: 12px; color: rgba(238,243,255,.68); margin-top:6px; }
+    .ok .v{ color: #86efac; }
+    .warn .v{ color: #fde68a; }
+    .mid .v{ color: #fdba74; }
+    .bad .v{ color: #fca5a5; }
+
+    /* ================================
+       TABLA – MEJORAS DE LEGIBILIDAD
+       ================================ */
+    .table-wrap{
+      overflow:auto;
+      max-height: 62vh;
+      position: relative;
+      border-top: 1px solid rgba(255,255,255,.06);
+      background: linear-gradient(180deg, rgba(7,10,18,.88), rgba(7,10,18,.92));
+    }
+
+    /* Sombras laterales (pista de scroll horizontal) */
+    .table-wrap::before,
+    .table-wrap::after{
+      content:"";
+      position:absolute;
+      top:0; bottom:0;
+      width: 18px;
+      pointer-events:none;
+      z-index: 4;
+    }
+    .table-wrap::before{
+      left:0;
+      background: linear-gradient(90deg, rgba(7,10,18,.85), rgba(7,10,18,0));
+    }
+    .table-wrap::after{
+      right:0;
+      background: linear-gradient(270deg, rgba(7,10,18,.85), rgba(7,10,18,0));
+    }
+
+    table{
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 1500px;
+      table-layout: fixed;
+    }
+
+    thead th{
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      padding: 12px 10px;
+      font-size: 12px;
+      color: rgba(238,243,255,.78);
+      letter-spacing:.35px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      text-align:center;
+
+      background: rgba(10,16,30,.80);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--stroke2);
+      box-shadow: 0 8px 18px rgba(0,0,0,.18);
+      font-weight: 950;
+    }
+
+    tbody td{
+      padding: 12px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      font-size: 14px;
+      vertical-align: middle;
+      line-height:1.25;
+    }
+
+    tbody tr:nth-child(odd){ background: rgba(255,255,255,.010); }
+    tbody tr:nth-child(even){ background: rgba(255,255,255,.022); }
+    tbody tr:hover{ background: color-mix(in oklab, var(--brand) 14%, transparent); }
+
+    /* Separadores verticales suaves */
+    th + th, td + td{ border-left: 1px solid rgba(255,255,255,.04); }
+
+    .mono{
+      font-variant-numeric: tabular-nums;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    /* Truncado elegante */
+    .truncate{
+      display:block;
+      max-width: 230px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Alineación por tipo de dato */
+    thead th:nth-child(2),
+    tbody td:nth-child(2),
+    thead th:nth-child(5),
+    tbody td:nth-child(5),
+    thead th:nth-child(6),
+    tbody td:nth-child(6){
+      text-align:left;
+    }
+    thead th:nth-child(9),
+    tbody td:nth-child(9){
+      text-align:right;
+    }
+    thead th:last-child,
+    tbody td:last-child{
+      text-align:center;
+    }
+
+    /* Congelar primera columna (#) y Nombre */
+    thead th:nth-child(1),
+    tbody td:nth-child(1){
+      position: sticky;
+      left: 0;
+      z-index: 5;
+      background: rgba(10,16,30,.92);
+      width: 56px;
+    }
+    thead th:nth-child(2),
+    tbody td:nth-child(2){
+      position: sticky;
+      left: 56px;
+      z-index: 5;
+      background: rgba(10,16,30,.92);
+      width: 240px;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 950;
+      font-size: 12px;
+      border: 1px solid var(--stroke2);
+      white-space: nowrap;
+      background: rgba(255,255,255,.03);
+      max-width: 360px;
+    }
+    .badge.ok{ border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.14); color: #bbf7d0; }
+    .badge.warn{ border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.16); color: #fde68a; }
+    .badge.mid{ border-color: rgba(251,146,60,.40); background: rgba(251,146,60,.16); color: #fed7aa; }
+    .badge.bad{ border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.14); color: #fecaca; }
+
+    .row-actions{
+      display:flex;
+      gap:8px;
+      justify-content:center;
+      opacity: .95;
+    }
+
+    .icon-btn{
+      padding: 8px 10px;
+      border-radius: 12px;
+      border:1px solid var(--stroke2);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      cursor:pointer;
+      font-weight: 950;
+      font-size: 12px;
+      white-space:nowrap;
+    }
+    .icon-btn:hover{ background: rgba(255,255,255,.08); }
+    .icon-btn.danger{ border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.12); }
+
+    .help{
+      padding: 16px;
+      border-top: 1px solid var(--stroke2);
+      background: rgba(255,255,255,.02);
+      color: rgba(238,243,255,.78);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .help strong{ color:#fff; }
+
+    dialog{
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      background: rgba(10,16,30,.92);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      width: min(920px, 94vw);
+      padding: 0;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    dialog::backdrop{
+      background: rgba(0,0,0,.60);
+      backdrop-filter: blur(4px);
+    }
+    .modal-head{
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--stroke2);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      background: rgba(255,255,255,.03);
+    }
+    .modal-head h2{ margin:0; font-size: 16px; font-weight: 950; }
+    .modal-body{
+      padding: 16px;
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 12px;
+    }
+    .modal-body label{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 900;
+      letter-spacing: .25px;
+      text-transform: uppercase;
+    }
+    .modal-foot{
+      padding: 12px 16px 16px;
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      border-top: 1px solid var(--stroke2);
+    }
+    .span-2{ grid-column: 1 / -1; }
+
+    .preview-row{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,.03);
+    }
+    .preview-row img{
+      width: 64px; height: 64px;
+      border-radius: 16px;
+      object-fit: contain;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.10);
+    }
+    .slider{
+      width: 100%;
+      accent-color: var(--brand);
+    }
+    .note{
+      font-size: 12px;
+      color: rgba(238,243,255,.70);
+      line-height: 1.45;
+      margin: 0;
+      text-transform: none;
+      letter-spacing: 0;
+      font-weight: 700;
+    }
+
+    /* Responsive: tabla -> cards */
+    @media (max-width: 860px){
+      .stats{ grid-template-columns: 1fr; }
+      thead{ display:none; }
+      tbody, tr, td{ display:block; width:100%; }
+      tbody tr{
+        margin: 12px 12px 0;
+        border: 1px solid var(--stroke2);
+        border-radius: 16px;
+        overflow:hidden;
+        background: rgba(255,255,255,.03);
+      }
+      tbody td{
+        display:flex;
+        justify-content:space-between;
+        gap:12px;
+        border-bottom: 1px solid rgba(255,255,255,.06);
+      }
+      tbody td::before{
+        content: attr(data-label);
+        color: rgba(238,243,255,.60);
+        font-weight: 950;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .25px;
+      }
+      .row-actions{ justify-content:flex-start; padding: 8px 10px; }
+      .modal-body{ grid-template-columns: 1fr; }
+      .actions{ justify-content:flex-start; }
+      table{ min-width: 0; }
+      /* sticky columns no aplican en modo cards */
+      thead th:nth-child(1), tbody td:nth-child(1),
+      thead th:nth-child(2), tbody td:nth-child(2){
+        position: static;
+        width:auto;
+        left:auto;
+        background: transparent;
+      }
+    }
+
+    .sr-only{
+      position:absolute;
+      width:1px;height:1px;
+      padding:0;margin:-1px;
+      overflow:hidden;clip:rect(0,0,0,0);
+      white-space:nowrap;border:0;
+    }
+
+    /* ================================
+       FOOTER – CRÉDITO DE AUTORÍA
+       ================================ */
+    .app-footer{
+      position: fixed;
+      bottom: 8px;
+      right: 14px;
+      z-index: 50;
+
+      font-size: 11.5px;
+      font-weight: 650;
+      letter-spacing: .25px;
+
+      color: rgba(238,243,255,.65);
+
+      background: rgba(7,10,18,.45);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.08);
+
+      box-shadow: 0 6px 18px rgba(0,0,0,.25);
+
+      user-select: none;
+    }
+    .app-footer strong{
+      color: var(--brand);
+      font-weight: 950;
+    }
+    @media (max-width: 768px){
+      .app-footer{
+        right: 50%;
+        transform: translateX(50%);
+        bottom: 6px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="shell">
+      <header>
+        <div class="brand" aria-label="Marca del bróker">
+          <div class="logo-box" aria-hidden="true">
+            <img id="brokerLogoImg" alt="Logo del bróker" />
+            <svg id="brokerLogoSvg" viewBox="0 0 100 100" role="img" aria-label="Logo por defecto">
+              <path d="M50 8 C66 10 84 20 84 42 C84 67 64 84 50 92 C36 84 16 67 16 42 C16 20 34 10 50 8Z" fill="rgba(255,255,255,.9)"/>
+              <path d="M50 24 C60 26 70 31 70 44 C70 58 60 68 50 74 C40 68 30 58 30 44 C30 31 40 26 50 24Z" fill="rgba(10,16,30,.55)"/>
+              <circle cx="50" cy="48" r="10" fill="rgba(255,255,255,.9)"/>
+            </svg>
+          </div>
+
+          <div class="title">
+            <h1><strong id="brokerNameText">AURORA BROKERS DE SEGUROS</strong> — Control de Asegurados</h1>
+            <p>Vigencia automática (365 días a las 12:00), renovación anticipada y periodo de gracia por falta de pago.</p>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnBrand">⚙️ Marca</button>
+          <button class="btn" id="btnTheme">🎨 Colores</button>
+          <button class="btn primary" id="btnAdd">+ Añadir</button>
+          <button class="btn" id="btnExport">📤 Exportar</button>
+          <button class="btn" id="btnImport">Importar</button>
+          <input class="sr-only" type="file" id="fileImport" accept=".xlsx,.csv" />
+          <button class="btn" id="btnTemplate">Plantilla</button>
+          <button class="btn danger" id="btnReset">Reset</button>
+        </div>
+      </header>
+
+      <div class="toolbar">
+        <div class="search">
+          <input id="q" class="field" placeholder="Buscar por nombre, póliza, renovación, compañía o teléfono…" autocomplete="off" />
+          <span class="hint" id="counterHint"></span>
+        </div>
+
+        <div class="filters">
+          <select id="filterStatus" class="select" aria-label="Filtro de estado">
+            <option value="all">Todos</option>
+            <option value="ok">Vigentes</option>
+            <option value="warn">Renovación anticipada</option>
+            <option value="mid">En gracia (sin pago)</option>
+            <option value="bad">Vencidas</option>
+          </select>
+
+          <select id="sortBy" class="select" aria-label="Ordenar por">
+            <option value="vencPolizaAsc">Venc. póliza (próximo primero)</option>
+            <option value="vencPolizaDesc">Venc. póliza (lejano primero)</option>
+            <option value="diasPolizaAsc">Días a venc. póliza (menor primero)</option>
+            <option value="diasPolizaDesc">Días a venc. póliza (mayor primero)</option>
+            <option value="nombreAsc">Nombre (A → Z)</option>
+            <option value="nombreDesc">Nombre (Z → A)</option>
+          </select>
+        </div>
+      </div>
+
+      <section class="stats" aria-label="Resumen">
+        <div class="card ok">
+          <div class="k">Vigentes</div>
+          <div class="v" id="statOk">0</div>
+          <div class="small">Más de 30 días para vencimiento de póliza.</div>
+        </div>
+        <div class="card warn">
+          <div class="k">Renovación anticipada</div>
+          <div class="v" id="statWarn">0</div>
+          <div class="small">Dentro de ventana de 30 días previos.</div>
+        </div>
+        <div class="card mid">
+          <div class="k">En gracia (sin pago)</div>
+          <div class="v" id="statMid">0</div>
+          <div class="small">Autos 15 días / Vida y GMM 30 días.</div>
+        </div>
+        <div class="card bad">
+          <div class="k">Vencidas</div>
+          <div class="v" id="statBad">0</div>
+          <div class="small">Fuera de vigencia o fuera de gracia.</div>
+        </div>
+      </section>
+
+      <div class="table-wrap" role="region" aria-label="Tabla de asegurados" tabindex="0">
+        <table aria-describedby="tableDesc">
+          <caption id="tableDesc" class="sr-only">
+            Tabla de asegurados con compañía, ramo, vigencia automática, pagos, renovación y alertas.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Nombre</th>
+              <th scope="col">Póliza</th>
+              <th scope="col">Ramo</th>
+              <th scope="col">Compañía</th>
+              <th scope="col">Teléfono/Contacto</th>
+              <th scope="col">Inicio vigencia</th>
+              <th scope="col">Venc. póliza (12:00)</th>
+              <th scope="col">Días</th>
+              <th scope="col">Fecha pago</th>
+              <th scope="col">Venc. pago</th>
+              <th scope="col">Estatus pago</th>
+              <th scope="col">Renovación</th>
+              <th scope="col">Póliza renovación</th>
+              <th scope="col">Alertamiento</th>
+              <th scope="col">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="help">
+        <strong>Ayuda rápida:</strong>
+        <ol>
+          <li><b>Inicio vigencia</b> calcula automáticamente <b>Venc. póliza</b> (365 días) y termina a las <b>12:00</b>.</li>
+          <li><b>Renovación anticipada</b>: se marca dentro de los <b>30 días</b> previos al vencimiento (Vida/GMM/Autos).</li>
+          <li><b>Sin pago</b>: si el pago sigue en <b>Pendiente</b> después del <b>Venc. pago</b>, entra a <b>periodo de gracia</b> (Autos 15 días, Vida y GMM 30 días).</li>
+          <li>Usa <b>⚙️ Marca</b> para cambiar el nombre del bróker y su logotipo (esquina y/o fondo diluido).</li>
+          <li>Usa <b>🎨 Colores</b> para cambiar la paleta (se guarda automáticamente).</li>
+          <li>Usa <b>📤 Exportar</b> para elegir Excel o CSV (guiado).</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Alta/Edición -->
+  <dialog id="dlgForm" aria-label="Formulario de asegurado">
+    <div class="modal-head">
+      <h2 id="dlgTitle">Añadir asegurado</h2>
+      <button class="btn ghost" id="btnCloseDlg" aria-label="Cerrar">✕</button>
+    </div>
+
+    <form method="dialog" id="form">
+      <div class="modal-body">
+        <label class="span-2">
+          Nombre del asegurado
+          <input class="field" id="fNombre" required maxlength="80" placeholder="Ej. Juan Pérez" />
+        </label>
+
+        <label>
+          Número de póliza
+          <input class="field mono" id="fPoliza" required maxlength="30" placeholder="Ej. POL-000123" />
+        </label>
+
+        <label>
+          Ramo
+          <select class="field" id="fRamo" required>
+            <option value="">Seleccione…</option>
+            <option value="VIDA">Vida</option>
+            <option value="GMM">GMM (Gastos Médicos Mayores)</option>
+            <option value="AUTOS">Autos</option>
+          </select>
+        </label>
+
+        <label>
+          Compañía aseguradora
+          <select class="field" id="fCompania" required>
+            <option value="">Seleccione…</option>
+          </select>
+        </label>
+
+        <label>
+          Teléfono / Contacto
+          <input class="field mono" id="fTelefono" required maxlength="40" placeholder="Ej. +52 55 1234 5678 / correo" />
+        </label>
+
+        <label>
+          Inicio vigencia
+          <input class="field mono" id="fInicio" type="date" required />
+        </label>
+
+        <label>
+          Vencimiento póliza (auto: +365 días a las 12:00)
+          <input class="field mono" id="fVencPoliza" type="datetime-local" readonly />
+        </label>
+
+        <label>
+          Fecha pago
+          <input class="field mono" id="fPago" type="date" required />
+        </label>
+
+        <label>
+          Vencimiento fecha de pago
+          <input class="field mono" id="fVencPago" type="date" required />
+        </label>
+
+        <label>
+          Estatus de pago
+          <select class="field" id="fPagoStatus" required>
+            <option value="PENDIENTE">Pendiente</option>
+            <option value="PAGADA">Pagada</option>
+          </select>
+        </label>
+
+        <label>
+          Fecha renovación sugerida (auto)
+          <input class="field mono" id="fRenovFecha" type="date" readonly />
+        </label>
+
+        <label class="span-2">
+          Nuevo número de póliza (renovación)
+          <input class="field mono" id="fPolizaRenov" maxlength="30" placeholder="Opcional (si ya existe)" />
+        </label>
+
+        <div class="span-2 hint" id="formHint"></div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" value="cancel" id="btnCancel">Cancelar</button>
+        <button class="btn primary" value="default" id="btnSave">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal Marca -->
+  <dialog id="dlgBrand" aria-label="Configuración de Marca">
+    <div class="modal-head">
+      <h2>Configuración de Marca (Bróker)</h2>
+      <button class="btn ghost" id="btnCloseBrand" aria-label="Cerrar">✕</button>
+    </div>
+
+    <form method="dialog" id="brandForm">
+      <div class="modal-body">
+        <label class="span-2">
+          Nombre del bróker
+          <input class="field" id="bName" maxlength="60" placeholder="Ej. Mi Bróker de Seguros" />
+        </label>
+
+        <label class="span-2">
+          Logotipo institucional (JPG/PNG/WebP)
+          <input class="field" id="bLogoFile" type="file" accept="image/*" />
+          <p class="note">Nota: el logo se optimiza automáticamente para guardarlo en el navegador (localStorage tiene límite).</p>
+        </label>
+
+        <div class="span-2 preview-row">
+          <img id="bPreview" alt="Vista previa del logo" />
+          <div>
+            <div style="font-weight:950;">Vista previa</div>
+            <div class="note">Se aplicará en esquina (opcional) y como fondo diluido (opcional).</div>
+          </div>
+        </div>
+
+        <label>
+          Usar logo en esquina
+          <select class="field" id="bUseCorner">
+            <option value="1">Sí</option>
+            <option value="0">No (usar logo por defecto)</option>
+          </select>
+        </label>
+
+        <label>
+          Usar como fondo diluido
+          <select class="field" id="bUseWatermark">
+            <option value="1">Sí</option>
+            <option value="0">No</option>
+          </select>
+        </label>
+
+        <label class="span-2">
+          Opacidad del fondo (diluido)
+          <input class="slider" id="bOpacity" type="range" min="0.02" max="0.18" step="0.01" />
+          <div class="note">Valor actual: <span id="bOpacityVal"></span></div>
+        </label>
+
+        <label class="span-2">
+          Tamaño del fondo (watermark)
+          <input class="slider" id="bSize" type="range" min="360" max="1200" step="20" />
+          <div class="note">Valor actual: <span id="bSizeVal"></span> px</div>
+        </label>
+
+        <label class="span-2">
+          Desenfoque del fondo (watermark)
+          <input class="slider" id="bBlur" type="range" min="0" max="2" step="0.1" />
+          <div class="note">Valor actual: <span id="bBlurVal"></span> px</div>
+        </label>
+
+        <div class="span-2" style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn danger" type="button" id="btnClearBrand">Restaurar por defecto</button>
+          <span class="note">Restablece nombre/logo/watermark a valores iniciales.</span>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" value="cancel">Cerrar</button>
+        <button class="btn primary" value="default" id="btnSaveBrand">Guardar cambios</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal Temas -->
+  <dialog id="dlgTheme" aria-label="Paleta de colores">
+    <div class="modal-head">
+      <h2>Paleta de colores</h2>
+      <button class="btn ghost" id="btnCloseTheme" aria-label="Cerrar">✕</button>
+    </div>
+
+    <div class="modal-body" style="grid-template-columns:1fr; gap:14px;">
+      <button class="btn primary theme-btn" data-theme="blue">🔵 Azul corporativo</button>
+      <button class="btn theme-btn" data-theme="violet">🟣 Violeta moderno</button>
+      <button class="btn theme-btn" data-theme="green">🟢 Verde confianza</button>
+      <button class="btn theme-btn" data-theme="gray">⚫ Gris profesional</button>
+      <p class="note">El cambio se aplica de inmediato y se guarda automáticamente.</p>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn" id="btnThemeCancel">Cerrar</button>
+    </div>
+  </dialog>
+
+  <!-- Modal Exportación guiada -->
+  <dialog id="dlgExport" aria-label="Exportar información">
+    <div class="modal-head">
+      <h2>Exportar información</h2>
+      <button class="btn ghost" id="btnCloseExport" aria-label="Cerrar">✕</button>
+    </div>
+
+    <div class="modal-body" style="grid-template-columns:1fr; gap:12px;">
+      <button class="btn primary" id="btnExportExcel">
+        📊 Exportar a Excel
+        <div class="note">Recomendado para Excel, filtros y reportes</div>
+      </button>
+
+      <button class="btn" id="btnExportCSV">
+        📄 Exportar a CSV
+        <div class="note">Compatible con cualquier sistema</div>
+      </button>
+
+      <button class="btn danger" id="btnCancelExport">Cancelar</button>
+    </div>
+  </dialog>
+
+  <!-- Confirm -->
+  <dialog id="dlgConfirm" aria-label="Confirmación">
+    <div class="modal-head">
+      <h2 id="confirmTitle">Confirmar</h2>
+      <button class="btn ghost" id="btnCloseConfirm" aria-label="Cerrar">✕</button>
+    </div>
+    <div style="padding:16px;">
+      <p id="confirmMsg" style="margin:0; line-height:1.5; color: rgba(238,243,255,.9);"></p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="confirmNo">Cancelar</button>
+      <button class="btn danger" id="confirmYes">Sí, continuar</button>
+    </div>
+  </dialog>
+
+  <!-- Footer crédito -->
+  <footer class="app-footer">
+    <span>Creado por <strong>GHIT</strong> by Copilot</span>
+  </footer>
+
+  <script>
+    /***********************
+     * Config
+     ***********************/
+    const MAX_ROWS = 200;
+    const STORAGE_KEY = "broker_asegurados_v2";
+    const BRAND_KEY   = "broker_branding_v2";
+    const THEME_KEY   = "broker_theme_v1";
+
+    const RAMOS_CONFIG = {
+      VIDA:  { renovacionAnticipada: 30, graciaPago: 30 },
+      GMM:   { renovacionAnticipada: 30, graciaPago: 30 },
+      AUTOS: { renovacionAnticipada: 30, graciaPago: 15 },
+    };
+
+    // Lista ampliada (editable). Cubre la mayoría de casos reales sin volverlo eterno.
+    const ASEGURADORAS = [
+      "AIG Seguros México",
+      "Allianz México",
+      "ANA Compañía de Seguros",
+      "AXA Seguros",
+      "BBVA Seguros",
+      "Chubb Seguros México",
+      "GNP Seguros",
+      "HDI Seguros",
+      "Mapfre México",
+      "Zurich Seguros México",
+      "Seguros Atlas",
+      "Seguros Afirme",
+      "Seguros Inbursa",
+      "Seguros Banorte",
+      "Seguros Banamex",
+      "Ve por Más Seguros (Bx+)",
+      "Assurant México",
+      "Berkley International Seguros México",
+      "MetLife México",
+      "Seguros Monterrey New York Life",
+      "Principal Financial Group México",
+      "Skandia México",
+      "Cardif México",
+      "Bupa México",
+      "Plan Seguro",
+      "Auna Seguros",
+      "Dentegra Seguros",
+      "El Águila Compañía de Seguros",
+      "Primero Seguros",
+      "GMX Seguros",
+      "General de Seguros",
+      "Agroasemex",
+      "Aseguradora Patrimonial Vida",
+      "Aseguradora Patrimonial Daños",
+      "Atradius Seguros de Crédito",
+      "Avla Seguros",
+      "Aserta Seguros Vida",
+      "Otra / No está en lista"
+    ];
+
+    /***********************
+     * Temas (paletas)
+     ***********************/
+    const THEMES = {
+      blue:   { "--brand":"#2563eb", "--brand-2":"#1e40af", "--brand-soft":"#dbeafe" },
+      violet: { "--brand":"#7c3aed", "--brand-2":"#5b21b6", "--brand-soft":"#ede9fe" },
+      green:  { "--brand":"#16a34a", "--brand-2":"#14532d", "--brand-soft":"#dcfce7" },
+      gray:   { "--brand":"#334155", "--brand-2":"#0f172a", "--brand-soft":"#e5e7eb" }
+    };
+
+    function applyTheme(name){
+      const theme = THEMES[name];
+      if(!theme) return;
+      Object.entries(theme).forEach(([k,v])=>{
+        document.documentElement.style.setProperty(k, v);
+      });
+      localStorage.setItem(THEME_KEY, name);
+    }
+
+    /***********************
+     * Helpers
+     ***********************/
+    const $ = (sel) => document.querySelector(sel);
+
+    function todayAtMidnight(){
+      const d = new Date();
+      d.setHours(0,0,0,0);
+      return d;
+    }
+    function toISODate(d){
+      const x = new Date(d);
+      x.setHours(0,0,0,0);
+      return x.toISOString().slice(0,10);
+    }
+    function parseDateISO(dateStr){
+      if(!dateStr) return null;
+      const d = new Date(dateStr + "T00:00:00");
+      return isNaN(d) ? null : d;
+    }
+    function parseDateTimeLocal(dt){
+      if(!dt) return null;
+      const d = new Date(dt);
+      return isNaN(d) ? null : d;
+    }
+    function diffDays(fromDate, toDate){
+      const a = new Date(fromDate); a.setHours(0,0,0,0);
+      const b = new Date(toDate);   b.setHours(0,0,0,0);
+      return Math.round((b - a) / 86400000);
+    }
+    function clampText(s){ return (s ?? "").toString().trim(); }
+    function escapeHtml(str){
+      return String(str).replace(/[&<>"']/g, m => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+      }[m]));
+    }
+    function phoneIsValid(s){
+      const t = clampText(s);
+      if(t.length < 5) return false;
+      return /^[0-9+\-().\s/@a-zA-ZáéíóúÁÉÍÓÚñÑ_]+$/.test(t);
+    }
+
+    // Inicio + 365 días exactos a las 12:00 PM
+    function calcularVencPolizaDateTime(inicioISO){
+      const start = parseDateISO(inicioISO);
+      if(!start) return null;
+      const end = new Date(start);
+      end.setDate(end.getDate() + 365);
+      end.setHours(12,0,0,0);
+      const yyyy = end.getFullYear();
+      const mm = String(end.getMonth()+1).padStart(2,"0");
+      const dd = String(end.getDate()).padStart(2,"0");
+      const HH = String(end.getHours()).padStart(2,"0");
+      const MI = String(end.getMinutes()).padStart(2,"0");
+      return `${yyyy}-${mm}-${dd}T${HH}:${MI}`;
+    }
+
+    // Renovación sugerida: día siguiente al vencimiento (fecha)
+    function calcularFechaRenovacion(vencPolizaDT){
+      const v = parseDateTimeLocal(vencPolizaDT);
+      if(!v) return "";
+      const d = new Date(v);
+      d.setDate(d.getDate() + 1);
+      d.setHours(0,0,0,0);
+      return toISODate(d);
+    }
+
+    function calcEstado(r){
+      const hoy = todayAtMidnight();
+      const cfg = RAMOS_CONFIG[r.ramo] || RAMOS_CONFIG.AUTOS;
+
+      const vencPolizaDT = parseDateTimeLocal(r.vencPolizaDT);
+      const vencPago = parseDateISO(r.vencPago);
+
+      const daysToVencPoliza = vencPolizaDT ? diffDays(hoy, vencPolizaDT) : null;
+      const daysToVencPago = vencPago ? diffDays(hoy, vencPago) : null;
+
+      // Sin pago: vencimiento de pago pasó y sigue pendiente
+      const sinPago = (r.pagoStatus === "PENDIENTE") && (daysToVencPago !== null) && (daysToVencPago < 0);
+
+      if(sinPago){
+        const daysLate = Math.abs(daysToVencPago);
+        if(daysLate <= cfg.graciaPago){
+          return { key:"mid", emoji:"🟠", label:`En gracia por falta de pago (${daysLate}/${cfg.graciaPago} días)`, daysToVencPoliza, daysToVencPago };
+        }
+        return { key:"bad", emoji:"🔴", label:`Vencida por falta de pago (superó gracia ${cfg.graciaPago} días)`, daysToVencPoliza, daysToVencPago };
+      }
+
+      // Ya venció póliza por vigencia
+      if(daysToVencPoliza !== null && daysToVencPoliza < 0){
+        return { key:"bad", emoji:"🔴", label:`Vencida (hace ${Math.abs(daysToVencPoliza)} día(s))`, daysToVencPoliza, daysToVencPago };
+      }
+
+      // Renovación anticipada
+      if(daysToVencPoliza !== null && daysToVencPoliza <= cfg.renovacionAnticipada){
+        const critico = (daysToVencPoliza <= 8) ? " ⚠️ (≤ 8 días)" : "";
+        return { key:"warn", emoji:"🟡", label:`Renovación anticipada: faltan ${daysToVencPoliza} día(s)${critico}`, daysToVencPoliza, daysToVencPago };
+      }
+
+      return { key:"ok", emoji:"🟢", label: daysToVencPoliza === null ? "Vigente" : `Vigente (faltan ${daysToVencPoliza} día(s))`, daysToVencPoliza, daysToVencPago };
+    }
+
+    /***********************
+     * Datos
+     ***********************/
+    let data = loadData();
+    let editingId = null;
+
+    function loadData(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return [];
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr : [];
+      }catch{
+        return [];
+      }
+    }
+    function saveData(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    /***********************
+     * Branding
+     ***********************/
+    const DEFAULT_BRAND = {
+      name: "AURORA BROKERS DE SEGUROS",
+      logoDataUrl: "",
+      useCorner: true,
+      useWatermark: true,
+      wmOpacity: 0.14,
+      wmSizePx: 980,
+      wmBlurPx: 0.4
+    };
+
+    function loadBrand(){
+      try{
+        const raw = localStorage.getItem(BRAND_KEY);
+        if(!raw) return { ...DEFAULT_BRAND };
+        const obj = JSON.parse(raw);
+        return { ...DEFAULT_BRAND, ...obj };
+      }catch{
+        return { ...DEFAULT_BRAND };
+      }
+    }
+    function saveBrand(brand){
+      localStorage.setItem(BRAND_KEY, JSON.stringify(brand));
+    }
+
+    function applyBrand(brand){
+      $("#brokerNameText").textContent = brand.name || DEFAULT_BRAND.name;
+
+      const img = $("#brokerLogoImg");
+      const svg = $("#brokerLogoSvg");
+
+      if(brand.useCorner && brand.logoDataUrl){
+        img.src = brand.logoDataUrl;
+        img.style.display = "block";
+        svg.style.display = "none";
+      }else{
+        img.removeAttribute("src");
+        img.style.display = "none";
+        svg.style.display = "block";
+      }
+
+      document.documentElement.style.setProperty("--wm-opacity", String(brand.useWatermark ? (brand.wmOpacity ?? 0.14) : 0));
+      document.documentElement.style.setProperty("--wm-size", `min(${Math.max(360, Math.min(1200, brand.wmSizePx ?? 980))}px, 95vw)`);
+      document.documentElement.style.setProperty("--wm-blur", `${brand.wmBlurPx ?? 0.4}px`);
+
+      if(brand.useWatermark && brand.logoDataUrl){
+        document.documentElement.style.setProperty("--wm-image", `url("${brand.logoDataUrl}")`);
+      }else{
+        document.documentElement.style.removeProperty("--wm-image");
+      }
+    }
+
+    // Optimiza imagen (reduce tamaño para guardar en localStorage)
+    async function fileToOptimizedDataURL(file, maxSize = 640, quality = 0.9){
+      return new Promise((resolve, reject)=>{
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
+            const w = Math.round(img.width * ratio);
+            const h = Math.round(img.height * ratio);
+
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0,0,w,h);
+            ctx.drawImage(img, 0, 0, w, h);
+
+            let dataUrl = "";
+            try{
+              dataUrl = canvas.toDataURL("image/webp", quality);
+              if(!dataUrl.startsWith("data:image/webp")) throw new Error("no webp");
+            }catch{
+              dataUrl = canvas.toDataURL("image/png");
+            }
+            resolve(dataUrl);
+          };
+          img.onerror = () => reject(new Error("No se pudo cargar la imagen."));
+          img.src = reader.result;
+        };
+        reader.onerror = () => reject(new Error("No se pudo leer el archivo."));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    /***********************
+     * Render
+     ***********************/
+    function getFilteredSorted(){
+      const q = clampText($("#q").value).toLowerCase();
+      const statusFilter = $("#filterStatus").value;
+      const sort = $("#sortBy").value;
+
+      let rows = data.map(r => ({ ...r, _st: calcEstado(r) }));
+
+      if(q){
+        rows = rows.filter(r =>
+          (r.nombre || "").toLowerCase().includes(q) ||
+          (r.poliza || "").toLowerCase().includes(q) ||
+          (r.polizaRenov || "").toLowerCase().includes(q) ||
+          (r.compania || "").toLowerCase().includes(q) ||
+          (r.telefono || "").toLowerCase().includes(q)
+        );
+      }
+
+      if(statusFilter !== "all"){
+        rows = rows.filter(r => r._st.key === statusFilter);
+      }
+
+      rows.sort((a,b)=>{
+        const aDays = a._st.daysToVencPoliza ?? 999999;
+        const bDays = b._st.daysToVencPoliza ?? 999999;
+
+        if(sort === "nombreAsc") return (a.nombre||"").localeCompare(b.nombre||"", "es");
+        if(sort === "nombreDesc") return (b.nombre||"").localeCompare(a.nombre||"", "es");
+        if(sort === "diasPolizaAsc") return aDays - bDays;
+        if(sort === "diasPolizaDesc") return bDays - aDays;
+
+        const av = (a.vencPolizaDT || "");
+        const bv = (b.vencPolizaDT || "");
+        if(sort === "vencPolizaDesc") return bv.localeCompare(av);
+        return av.localeCompare(bv);
+      });
+
+      return rows;
+    }
+
+    function render(){
+      const rows = getFilteredSorted();
+      const tbody = $("#tbody");
+      tbody.innerHTML = "";
+
+      $("#counterHint").textContent = `Mostrando ${rows.length} de ${data.length} (máx. ${MAX_ROWS})`;
+
+      const stats = { ok:0, warn:0, mid:0, bad:0 };
+      for(const r of data){
+        const st = calcEstado(r);
+        stats[st.key] = (stats[st.key] || 0) + 1;
+      }
+      $("#statOk").textContent = stats.ok;
+      $("#statWarn").textContent = stats.warn;
+      $("#statMid").textContent = stats.mid;
+      $("#statBad").textContent = stats.bad;
+
+      if(rows.length === 0){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td data-label="#" class="mono">—</td>
+          <td data-label="Nombre" colspan="14" style="padding:18px 10px;">
+            <div style="font-weight:950;">Sin resultados</div>
+            <div style="opacity:.75; font-size:12px;">Agrega un asegurado o ajusta tu búsqueda/filtros.</div>
+          </td>
+          <td data-label="Acciones"></td>
+        `;
+        tbody.appendChild(tr);
+        return;
+      }
+
+      rows.forEach((r, idx)=>{
+        const st = r._st;
+        const badgeClass = st.key;
+        const daysText = (st.daysToVencPoliza === null) ? "—" : String(st.daysToVencPoliza);
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td data-label="#" class="mono">${idx + 1}</td>
+          <td data-label="Nombre"><b>${escapeHtml(r.nombre)}</b></td>
+          <td data-label="Póliza" class="mono">${escapeHtml(r.poliza)}</td>
+          <td data-label="Ramo" class="mono">${escapeHtml(r.ramo)}</td>
+          <td data-label="Compañía"><span class="truncate" title="${escapeHtml(r.compania)}">${escapeHtml(r.compania)}</span></td>
+          <td data-label="Teléfono/Contacto" class="mono"><span class="truncate" title="${escapeHtml(r.telefono)}">${escapeHtml(r.telefono)}</span></td>
+          <td data-label="Inicio vigencia" class="mono">${escapeHtml(r.inicioVigencia)}</td>
+          <td data-label="Venc. póliza (12:00)" class="mono"><b>${escapeHtml((r.vencPolizaDT||"").replace("T"," "))}</b></td>
+          <td data-label="Días" class="mono"><b>${escapeHtml(daysText)}</b></td>
+          <td data-label="Fecha pago" class="mono">${escapeHtml(r.fechaPago)}</td>
+          <td data-label="Venc. pago" class="mono">${escapeHtml(r.vencPago)}</td>
+          <td data-label="Estatus pago" class="mono">${escapeHtml(r.pagoStatus)}</td>
+          <td data-label="Renovación" class="mono">${escapeHtml(r.fechaRenovacion||"")}</td>
+          <td data-label="Póliza renovación" class="mono">${escapeHtml(r.polizaRenov||"")}</td>
+          <td data-label="Alertamiento">
+            <span class="badge ${badgeClass}" title="${escapeHtml(st.label)}">
+              ${st.emoji} ${escapeHtml(st.label)}
+            </span>
+          </td>
+          <td data-label="Acciones">
+            <div class="row-actions">
+              <button class="icon-btn" data-action="edit" data-id="${escapeHtml(r.id)}" title="Editar">✏️ Editar</button>
+              <button class="icon-btn danger" data-action="del" data-id="${escapeHtml(r.id)}" title="Eliminar">🗑️ Eliminar</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    /***********************
+     * CRUD
+     ***********************/
+    function openForm(mode, row){
+      $("#dlgTitle").textContent = mode === "edit" ? "Editar asegurado" : "Añadir asegurado";
+      $("#formHint").textContent = "";
+
+      if(mode === "edit" && row){
+        editingId = row.id;
+        $("#fNombre").value = row.nombre || "";
+        $("#fPoliza").value = row.poliza || "";
+        $("#fRamo").value = row.ramo || "";
+        $("#fCompania").value = row.compania || "";
+        $("#fTelefono").value = row.telefono || "";
+        $("#fInicio").value = row.inicioVigencia || "";
+        $("#fVencPoliza").value = row.vencPolizaDT || "";
+        $("#fPago").value = row.fechaPago || "";
+        $("#fVencPago").value = row.vencPago || "";
+        $("#fPagoStatus").value = row.pagoStatus || "PENDIENTE";
+        $("#fRenovFecha").value = row.fechaRenovacion || "";
+        $("#fPolizaRenov").value = row.polizaRenov || "";
+      }else{
+        editingId = null;
+        $("#fNombre").value = "";
+        $("#fPoliza").value = "";
+        $("#fRamo").value = "";
+        $("#fCompania").value = "";
+        $("#fTelefono").value = "";
+        $("#fInicio").value = toISODate(todayAtMidnight());
+
+        const vencDT = calcularVencPolizaDateTime($("#fInicio").value);
+        $("#fVencPoliza").value = vencDT || "";
+
+        $("#fPago").value = toISODate(todayAtMidnight());
+        $("#fVencPago").value = "";
+        $("#fPagoStatus").value = "PENDIENTE";
+
+        $("#fRenovFecha").value = calcularFechaRenovacion($("#fVencPoliza").value);
+        $("#fPolizaRenov").value = "";
+      }
+
+      $("#dlgForm").showModal();
+      $("#fNombre").focus();
+    }
+
+    function closeForm(){ $("#dlgForm").close(); }
+
+    function validateForm(obj){
+      const required = ["nombre","poliza","ramo","compania","telefono","inicioVigencia","vencPolizaDT","fechaPago","vencPago","pagoStatus"];
+      for(const k of required){
+        if(!obj[k]) return `Falta el campo obligatorio: ${k}`;
+      }
+      if(!phoneIsValid(obj.telefono)) return "Teléfono/Contacto no parece válido (usa números y símbolos comunes).";
+
+      const expected = calcularVencPolizaDateTime(obj.inicioVigencia);
+      if(expected && obj.vencPolizaDT !== expected){
+        return "El vencimiento de póliza debe ser automático (inicio + 365 días a las 12:00).";
+      }
+      if(!parseDateISO(obj.vencPago) || !parseDateISO(obj.fechaPago)) return "Fechas de pago inválidas.";
+      if(parseDateISO(obj.vencPago) < parseDateISO(obj.fechaPago)) return "El vencimiento de pago no puede ser anterior a la fecha de pago.";
+      return null;
+    }
+
+    function upsert(obj){
+      if(editingId){
+        const i = data.findIndex(x => x.id === editingId);
+        if(i >= 0) data[i] = { ...data[i], ...obj };
+      }else{
+        if(data.length >= MAX_ROWS) return `Límite alcanzado: máximo ${MAX_ROWS} asegurados.`;
+        const id = (crypto.randomUUID?.() || String(Date.now()+Math.random()));
+        data.push({ id, ...obj });
+      }
+      saveData();
+      render();
+      return null;
+    }
+
+    function removeById(id){
+      data = data.filter(x => x.id !== id);
+      saveData();
+      render();
+    }
+
+    /***********************
+     * Confirm dialog
+     ***********************/
+    function confirmDialog(title, msg){
+      return new Promise((resolve)=>{
+        $("#confirmTitle").textContent = title;
+        $("#confirmMsg").textContent = msg;
+
+        const dlg = $("#dlgConfirm");
+        const yes = $("#confirmYes");
+        const no = $("#confirmNo");
+        const closeX = $("#btnCloseConfirm");
+
+        function cleanup(){
+          yes.removeEventListener("click", onYes);
+          no.removeEventListener("click", onNo);
+          closeX.removeEventListener("click", onNo);
+        }
+        function onYes(){ cleanup(); dlg.close(); resolve(true); }
+        function onNo(){ cleanup(); dlg.close(); resolve(false); }
+
+        yes.addEventListener("click", onYes);
+        no.addEventListener("click", onNo);
+        closeX.addEventListener("click", onNo);
+
+        dlg.showModal();
+      });
+    }
+
+    /***********************
+     * Import/Export
+     ***********************/
+    const HEADERS_TEMPLATE = [
+      "Nombre del asegurado",
+      "Número de póliza",
+      "Ramo (VIDA|GMM|AUTOS)",
+      "Compañía aseguradora",
+      "Teléfono / Contacto",
+      "Inicio vigencia (YYYY-MM-DD)",
+      "Fecha pago (YYYY-MM-DD)",
+      "Vencimiento fecha de pago (YYYY-MM-DD)",
+      "Estatus pago (PAGADA|PENDIENTE)",
+      "Póliza renovación (opcional)"
+    ];
+
+    const HEADERS_EXPORT = [
+      ...HEADERS_TEMPLATE,
+      "Venc. póliza (auto, +365 a las 12:00)",
+      "Fecha renovación sugerida (auto)",
+      "Días a venc. póliza (auto)",
+      "Alertamiento (auto)"
+    ];
+
+    function rowsForExport(){
+      return data.map(r => {
+        const st = calcEstado(r);
+        const days = st.daysToVencPoliza === null ? "" : st.daysToVencPoliza;
+        return ([
+          r.nombre || "",
+          r.poliza || "",
+          r.ramo || "",
+          r.compania || "",
+          r.telefono || "",
+          r.inicioVigencia || "",
+          r.fechaPago || "",
+          r.vencPago || "",
+          r.pagoStatus || "",
+          r.polizaRenov || "",
+          (r.vencPolizaDT||"").replace("T"," "),
+          r.fechaRenovacion || "",
+          days,
+          st.label || ""
+        ]);
+      });
+    }
+
+    function downloadBlob(filename, blob){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportCSV(){
+      const lines = [];
+      lines.push(HEADERS_EXPORT.join(","));
+      for(const row of rowsForExport()){
+        const escaped = row.map(v => {
+          const s = String(v ?? "");
+          if(/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+          return s;
+        });
+        lines.push(escaped.join(","));
+      }
+      downloadBlob("asegurados.csv", new Blob([lines.join("\n")], {type:"text/csv;charset=utf-8"}));
+    }
+
+    function exportXLSX(){
+      if(typeof XLSX === "undefined"){
+        alert("No se cargó la librería XLSX. Recarga la página.");
+        return;
+      }
+      const aoa = [HEADERS_EXPORT, ...rowsForExport()];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = [
+        {wch: 26},{wch: 18},{wch: 10},{wch: 26},{wch: 22},
+        {wch: 14},{wch: 14},{wch: 22},{wch: 16},{wch: 20},
+        {wch: 22},{wch: 20},{wch: 18},{wch: 42}
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Asegurados");
+      XLSX.writeFile(wb, "asegurados.xlsx");
+    }
+
+    function downloadTemplate(){
+      if(typeof XLSX === "undefined"){
+        downloadBlob("plantilla_asegurados.csv", new Blob([HEADERS_TEMPLATE.join(",") + "\n"], {type:"text/csv;charset=utf-8"}));
+        return;
+      }
+      const ws = XLSX.utils.aoa_to_sheet([HEADERS_TEMPLATE]);
+      ws["!cols"] = [
+        {wch: 26},{wch: 18},{wch: 18},{wch: 26},{wch: 22},
+        {wch: 18},{wch: 18},{wch: 26},{wch: 20},{wch: 24}
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
+      XLSX.writeFile(wb, "plantilla_asegurados.xlsx");
+    }
+
+    function parseCSV(text){
+      const rows = [];
+      let i=0, field="", row=[], inQuotes=false;
+      while(i < text.length){
+        const c = text[i];
+        if(inQuotes){
+          if(c === '"' && text[i+1] === '"'){ field += '"'; i += 2; continue; }
+          if(c === '"'){ inQuotes=false; i++; continue; }
+          field += c; i++; continue;
+        }else{
+          if(c === '"'){ inQuotes=true; i++; continue; }
+          if(c === ","){ row.push(field); field=""; i++; continue; }
+          if(c === "\n"){ row.push(field); rows.push(row); field=""; row=[]; i++; continue; }
+          if(c === "\r"){ i++; continue; }
+          field += c; i++; continue;
+        }
+      }
+      row.push(field);
+      rows.push(row);
+      return rows;
+    }
+
+    function normalizeImportedRow(arr){
+      const obj = {
+        nombre: clampText(arr[0] ?? ""),
+        poliza: clampText(arr[1] ?? ""),
+        ramo: clampText(arr[2] ?? "").toUpperCase(),
+        compania: clampText(arr[3] ?? ""),
+        telefono: clampText(arr[4] ?? ""),
+        inicioVigencia: clampText(arr[5] ?? ""),
+        fechaPago: clampText(arr[6] ?? ""),
+        vencPago: clampText(arr[7] ?? ""),
+        pagoStatus: clampText(arr[8] ?? "PENDIENTE").toUpperCase() || "PENDIENTE",
+        polizaRenov: clampText(arr[9] ?? "")
+      };
+
+      if(!["VIDA","GMM","AUTOS"].includes(obj.ramo)) obj.ramo = "AUTOS";
+      obj.vencPolizaDT = calcularVencPolizaDateTime(obj.inicioVigencia) || "";
+      obj.fechaRenovacion = calcularFechaRenovacion(obj.vencPolizaDT);
+
+      if(!["PAGADA","PENDIENTE"].includes(obj.pagoStatus)) obj.pagoStatus = "PENDIENTE";
+      if(!obj.compania) obj.compania = "Otra / No está en lista";
+      return obj;
+    }
+
+    async function importFile(file){
+      if(!file) return;
+
+      const ok = await confirmDialog("Importar datos","La importación reemplazará los registros actuales. ¿Deseas continuar?");
+      if(!ok) return;
+
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      const imported = [];
+
+      if(ext === "csv"){
+        const text = await file.text();
+        const rows = parseCSV(text);
+        const body = rows.slice(1);
+        for(const r of body){
+          if(!r || r.length < 2) continue;
+          const obj = normalizeImportedRow(r);
+          const err = validateForm(obj);
+          if(err) continue;
+          imported.push({ id: crypto.randomUUID?.() || String(Date.now()+Math.random()), ...obj });
+          if(imported.length >= MAX_ROWS) break;
+        }
+        data = imported; saveData(); render();
+        return;
+      }
+
+      if(ext === "xlsx"){
+        if(typeof XLSX === "undefined"){
+          alert("No se cargó la librería XLSX. Recarga la página.");
+          return;
+        }
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, {type:"array"});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const aoa = XLSX.utils.sheet_to_json(ws, {header:1, raw:true});
+        const body = aoa.slice(1);
+
+        for(const r of body){
+          if(!r || r.length < 2) continue;
+
+          const row = [];
+          for(let i=0;i<10;i++){
+            let v = r[i];
+            if(typeof v === "number"){
+              const d = XLSX.SSF.parse_date_code(v);
+              if(d && d.y){
+                v = new Date(Date.UTC(d.y, d.m-1, d.d)).toISOString().slice(0,10);
+              }
+            }
+            row[i] = (v ?? "").toString().trim();
+          }
+
+          const obj = normalizeImportedRow(row);
+          const err = validateForm(obj);
+          if(err) continue;
+
+          imported.push({ id: crypto.randomUUID?.() || String(Date.now()+Math.random()), ...obj });
+          if(imported.length >= MAX_ROWS) break;
+        }
+
+        data = imported; saveData(); render();
+        return;
+      }
+
+      alert("Formato no soportado. Usa .xlsx o .csv");
+    }
+
+    /***********************
+     * Validación
+     ***********************/
+    function validateForm(obj){
+      const required = ["nombre","poliza","ramo","compania","telefono","inicioVigencia","vencPolizaDT","fechaPago","vencPago","pagoStatus"];
+      for(const k of required){
+        if(!obj[k]) return `Falta el campo obligatorio: ${k}`;
+      }
+      if(!phoneIsValid(obj.telefono)) return "Teléfono/Contacto no parece válido (usa números y símbolos comunes).";
+
+      const expected = calcularVencPolizaDateTime(obj.inicioVigencia);
+      if(expected && obj.vencPolizaDT !== expected){
+        return "El vencimiento de póliza debe ser automático (inicio + 365 días a las 12:00).";
+      }
+      if(!parseDateISO(obj.vencPago) || !parseDateISO(obj.fechaPago)) return "Fechas de pago inválidas.";
+      if(parseDateISO(obj.vencPago) < parseDateISO(obj.fechaPago)) return "El vencimiento de pago no puede ser anterior a la fecha de pago.";
+      return null;
+    }
+
+    /***********************
+     * UI: Aseguradoras
+     ***********************/
+    function initAseguradoras(){
+      const sel = $("#fCompania");
+      sel.innerHTML = `<option value="">Seleccione…</option>`;
+      ASEGURADORAS.forEach(name=>{
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      });
+    }
+
+    /***********************
+     * Export UI (guiado)
+     ***********************/
+    function openExport(){
+      $("#dlgExport").showModal();
+    }
+
+    /***********************
+     * CRUD Storage
+     ***********************/
+    function upsert(obj){
+      if(editingId){
+        const i = data.findIndex(x => x.id === editingId);
+        if(i >= 0) data[i] = { ...data[i], ...obj };
+      }else{
+        if(data.length >= MAX_ROWS) return `Límite alcanzado: máximo ${MAX_ROWS} asegurados.`;
+        const id = (crypto.randomUUID?.() || String(Date.now()+Math.random()));
+        data.push({ id, ...obj });
+      }
+      saveData();
+      render();
+      return null;
+    }
+
+    function saveData(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function removeById(id){
+      data = data.filter(x => x.id !== id);
+      saveData();
+      render();
+    }
+
+    /***********************
+     * Dialogs / Eventos
+     ***********************/
+    $("#btnAdd").addEventListener("click", ()=> openForm("add"));
+    $("#btnCloseDlg").addEventListener("click", (e)=>{ e.preventDefault(); closeForm(); });
+    $("#btnCancel").addEventListener("click", (e)=>{ e.preventDefault(); closeForm(); });
+
+    $("#btnExport").addEventListener("click", openExport);
+    $("#btnCloseExport").addEventListener("click", ()=> $("#dlgExport").close());
+    $("#btnCancelExport").addEventListener("click", ()=> $("#dlgExport").close());
+
+    $("#btnExportExcel").addEventListener("click", ()=>{
+      $("#dlgExport").close();
+      exportXLSX();
+    });
+    $("#btnExportCSV").addEventListener("click", ()=>{
+      $("#dlgExport").close();
+      exportCSV();
+    });
+
+    $("#fInicio").addEventListener("change", ()=>{
+      const vencDT = calcularVencPolizaDateTime($("#fInicio").value);
+      $("#fVencPoliza").value = vencDT || "";
+      $("#fRenovFecha").value = calcularFechaRenovacion($("#fVencPoliza").value);
+    });
+
+    $("#form").addEventListener("submit", (e)=>{
+      e.preventDefault();
+
+      const vencDT = calcularVencPolizaDateTime($("#fInicio").value) || "";
+      const renovFecha = calcularFechaRenovacion(vencDT);
+
+      const obj = {
+        nombre: clampText($("#fNombre").value),
+        poliza: clampText($("#fPoliza").value),
+        ramo: $("#fRamo").value,
+        compania: $("#fCompania").value,
+        telefono: clampText($("#fTelefono").value),
+        inicioVigencia: $("#fInicio").value,
+
+        vencPolizaDT: vencDT,
+        fechaRenovacion: renovFecha,
+
+        fechaPago: $("#fPago").value,
+        vencPago: $("#fVencPago").value,
+        pagoStatus: $("#fPagoStatus").value,
+
+        polizaRenov: clampText($("#fPolizaRenov").value)
+      };
+
+      $("#fVencPoliza").value = obj.vencPolizaDT;
+      $("#fRenovFecha").value = obj.fechaRenovacion;
+
+      const err = validateForm(obj);
+      if(err){
+        $("#formHint").textContent = "⚠️ " + err;
+        return;
+      }
+
+      const err2 = upsert(obj);
+      if(err2){
+        $("#formHint").textContent = "⚠️ " + err2;
+        return;
+      }
+
+      closeForm();
+    });
+
+    $("#tbody").addEventListener("click", async (e)=>{
+      const btn = e.target.closest("button[data-action]");
+      if(!btn) return;
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      const row = data.find(x => x.id === id);
+      if(!row) return;
+
+      if(action === "edit"){
+        openForm("edit", row);
+      }else if(action === "del"){
+        const ok = await confirmDialog("Eliminar asegurado", `¿Seguro que deseas eliminar el registro de "${row.nombre}" (póliza ${row.poliza})?`);
+        if(ok) removeById(id);
+      }
+    });
+
+    $("#q").addEventListener("input", render);
+    $("#filterStatus").addEventListener("change", render);
+    $("#sortBy").addEventListener("change", render);
+
+    $("#btnTemplate").addEventListener("click", downloadTemplate);
+
+    $("#btnImport").addEventListener("click", ()=>{
+      $("#fileImport").value = "";
+      $("#fileImport").click();
+    });
+    $("#fileImport").addEventListener("change", async ()=>{
+      const file = $("#fileImport").files?.[0];
+      await importFile(file);
+    });
+
+    $("#btnReset").addEventListener("click", async ()=>{
+      const ok = await confirmDialog("Reset total","Esto borrará todos los registros guardados. ¿Deseas continuar?");
+      if(!ok) return;
+      data = [];
+      saveData();
+      render();
+    });
+
+    $("#btnCloseConfirm").addEventListener("click", ()=> $("#dlgConfirm").close());
+
+    function openForm(mode, row){
+      $("#dlgTitle").textContent = mode === "edit" ? "Editar asegurado" : "Añadir asegurado";
+      $("#formHint").textContent = "";
+
+      if(mode === "edit" && row){
+        editingId = row.id;
+        $("#fNombre").value = row.nombre || "";
+        $("#fPoliza").value = row.poliza || "";
+        $("#fRamo").value = row.ramo || "";
+        $("#fCompania").value = row.compania || "";
+        $("#fTelefono").value = row.telefono || "";
+        $("#fInicio").value = row.inicioVigencia || "";
+        $("#fVencPoliza").value = row.vencPolizaDT || "";
+        $("#fPago").value = row.fechaPago || "";
+        $("#fVencPago").value = row.vencPago || "";
+        $("#fPagoStatus").value = row.pagoStatus || "PENDIENTE";
+        $("#fRenovFecha").value = row.fechaRenovacion || "";
+        $("#fPolizaRenov").value = row.polizaRenov || "";
+      }else{
+        editingId = null;
+        $("#fNombre").value = "";
+        $("#fPoliza").value = "";
+        $("#fRamo").value = "";
+        $("#fCompania").value = "";
+        $("#fTelefono").value = "";
+        $("#fInicio").value = toISODate(todayAtMidnight());
+
+        const vencDT = calcularVencPolizaDateTime($("#fInicio").value);
+        $("#fVencPoliza").value = vencDT || "";
+
+        $("#fPago").value = toISODate(todayAtMidnight());
+        $("#fVencPago").value = "";
+        $("#fPagoStatus").value = "PENDIENTE";
+
+        $("#fRenovFecha").value = calcularFechaRenovacion($("#fVencPoliza").value);
+        $("#fPolizaRenov").value = "";
+      }
+
+      $("#dlgForm").showModal();
+      $("#fNombre").focus();
+    }
+
+    function closeForm(){ $("#dlgForm").close(); }
+
+    /***********************
+     * Branding UI
+     ***********************/
+    let brand = loadBrand();
+
+    function syncBrandUI(){
+      $("#bName").value = brand.name || DEFAULT_BRAND.name;
+      $("#bUseCorner").value = brand.useCorner ? "1" : "0";
+      $("#bUseWatermark").value = brand.useWatermark ? "1" : "0";
+      $("#bOpacity").value = String(brand.wmOpacity ?? 0.14);
+      $("#bOpacityVal").textContent = String(brand.wmOpacity ?? 0.14);
+      $("#bSize").value = String(brand.wmSizePx ?? 980);
+      $("#bSizeVal").textContent = String(brand.wmSizePx ?? 980);
+      $("#bBlur").value = String(brand.wmBlurPx ?? 0.4);
+      $("#bBlurVal").textContent = String(brand.wmBlurPx ?? 0.4);
+
+      const prev = $("#bPreview");
+      if(brand.logoDataUrl){
+        prev.src = brand.logoDataUrl;
+        prev.style.visibility = "visible";
+      }else{
+        prev.removeAttribute("src");
+        prev.style.visibility = "hidden";
+      }
+    }
+
+    $("#btnBrand").addEventListener("click", ()=>{
+      brand = loadBrand();
+      syncBrandUI();
+      $("#dlgBrand").showModal();
+    });
+
+    $("#btnCloseBrand").addEventListener("click", ()=> $("#dlgBrand").close());
+
+    $("#bOpacity").addEventListener("input", ()=> $("#bOpacityVal").textContent = $("#bOpacity").value);
+    $("#bSize").addEventListener("input", ()=> $("#bSizeVal").textContent = $("#bSize").value);
+    $("#bBlur").addEventListener("input", ()=> $("#bBlurVal").textContent = $("#bBlur").value);
+
+    $("#bLogoFile").addEventListener("change", async ()=>{
+      const file = $("#bLogoFile").files?.[0];
+      if(!file) return;
+      try{
+        const dataUrl = await fileToOptimizedDataURL(file, 640, 0.9);
+        brand.logoDataUrl = dataUrl;
+        $("#bPreview").src = dataUrl;
+        $("#bPreview").style.visibility = "visible";
+      }catch{
+        alert("No se pudo cargar el logo. Intenta con otra imagen.");
+      }
+    });
+
+    $("#btnClearBrand").addEventListener("click", ()=>{
+      brand = { ...DEFAULT_BRAND };
+      saveBrand(brand);
+      applyBrand(brand);
+      syncBrandUI();
+    });
+
+    $("#btnSaveBrand").addEventListener("click", (e)=>{
+      e.preventDefault();
+
+      brand.name = clampText($("#bName").value) || DEFAULT_BRAND.name;
+      brand.useCorner = $("#bUseCorner").value === "1";
+      brand.useWatermark = $("#bUseWatermark").value === "1";
+      brand.wmOpacity = parseFloat($("#bOpacity").value);
+      brand.wmSizePx = parseInt($("#bSize").value, 10);
+      brand.wmBlurPx = parseFloat($("#bBlur").value);
+
+      saveBrand(brand);
+      applyBrand(brand);
+      $("#dlgBrand").close();
+    });
+
+    /***********************
+     * Temas UI
+     ***********************/
+    $("#btnTheme").addEventListener("click", ()=> $("#dlgTheme").showModal());
+    $("#btnCloseTheme").addEventListener("click", ()=> $("#dlgTheme").close());
+    $("#btnThemeCancel").addEventListener("click", ()=> $("#dlgTheme").close());
+
+    document.querySelectorAll(".theme-btn").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        applyTheme(btn.dataset.theme);
+        $("#dlgTheme").close();
+      });
+    });
+
+    /***********************
+     * Confirm modal close
+     ***********************/
+    $("#btnCloseConfirm").addEventListener("click", ()=> $("#dlgConfirm").close());
+
+    /***********************
+     * Confirm dialog util
+     ***********************/
+    function confirmDialog(title, msg){
+      return new Promise((resolve)=>{
+        $("#confirmTitle").textContent = title;
+        $("#confirmMsg").textContent = msg;
+
+        const dlg = $("#dlgConfirm");
+        const yes = $("#confirmYes");
+        const no = $("#confirmNo");
+        const closeX = $("#btnCloseConfirm");
+
+        function cleanup(){
+          yes.removeEventListener("click", onYes);
+          no.removeEventListener("click", onNo);
+          closeX.removeEventListener("click", onNo);
+        }
+        function onYes(){ cleanup(); dlg.close(); resolve(true); }
+        function onNo(){ cleanup(); dlg.close(); resolve(false); }
+
+        yes.addEventListener("click", onYes);
+        no.addEventListener("click", onNo);
+        closeX.addEventListener("click", onNo);
+
+        dlg.showModal();
+      });
+    }
+
+    /***********************
+     * Branding storage
+     ***********************/
+    function loadBrand(){
+      try{
+        const raw = localStorage.getItem(BRAND_KEY);
+        if(!raw) return { ...DEFAULT_BRAND };
+        const obj = JSON.parse(raw);
+        return { ...DEFAULT_BRAND, ...obj };
+      }catch{
+        return { ...DEFAULT_BRAND };
+      }
+    }
+
+    function saveBrand(brand){
+      localStorage.setItem(BRAND_KEY, JSON.stringify(brand));
+    }
+
+    /***********************
+     * Init
+     ***********************/
+    initAseguradoras();
+
+    // Tema guardado
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    if(savedTheme) applyTheme(savedTheme);
+
+    // Marca guardada
+    applyBrand(loadBrand());
+
+    render();
+  </script>
+</body>
+</html>
